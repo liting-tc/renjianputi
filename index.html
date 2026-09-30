@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>多人同步幸运轮盘 (1-31)</title>
+  <title>数字抽签轮盘 (1-31)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
     body { background: #f0f2f5; color: #333; padding: 20px; display: flex; justify-content: center; }
@@ -11,7 +11,6 @@
     
     .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
     h2 { font-size: 1.2rem; margin-bottom: 16px; color: #1f2937; border-left: 4px solid #3b82f6; padding-left: 8px; }
-    .status-badge { float: right; font-size: 0.8rem; padding: 4px 8px; border-radius: 12px; background: #e0e7ff; color: #4338ca; }
 
     /* 轮盘区 */
     .wheel-section { display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
@@ -27,22 +26,36 @@
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
     }
 
-    /* 按钮 */
-    .btn { background: #3b82f6; color: white; border: none; padding: 8px 16px; font-size: 0.95rem; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+    /* 按钮样式 */
+    .btn {
+      background: #3b82f6; color: white; border: none; padding: 8px 16px; font-size: 0.95rem;
+      border-radius: 8px; cursor: pointer; transition: background 0.2s;
+    }
     .btn:hover { background: #2563eb; }
     .btn:disabled { background: #9ca3af; cursor: not-allowed; }
     .btn-spin { font-size: 1.2rem; padding: 12px 36px; background: #10b981; font-weight: bold; }
     .btn-spin:hover { background: #059669; }
-    .btn-delete { background: #fee2e2; color: #dc2626; padding: 4px 10px; font-size: 0.8rem; border-radius: 6px; }
+    
+    /* 删除按钮样式 */
+    .btn-delete {
+      background: #fee2e2; color: #dc2626; padding: 4px 10px; font-size: 0.8rem; border-radius: 6px;
+    }
+    .btn-delete:hover { background: #fca5a5; color: #991b1b; }
 
-    /* 控制面板与表格 */
+    /* 右侧控制面板 */
     .control-panel { display: flex; flex-direction: column; gap: 20px; }
     .input-group { display: flex; gap: 8px; }
-    .input-group input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; }
+    .input-group input {
+      flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none;
+    }
+    .input-group input:focus { border-color: #3b82f6; }
+
+    /* 列表表格 */
     .table-wrapper { max-height: 260px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; text-align: left; }
     th, td { padding: 8px 12px; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
     th { background: #f8fafc; color: #64748b; font-weight: 600; position: sticky; top: 0; }
+
     .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
     .tag-pending { background: #fef3c7; color: #d97706; }
     .tag-done { background: #dcfce7; color: #15803d; }
@@ -58,252 +71,148 @@
 <div class="container">
   <!-- 左侧：抽签轮盘展示 -->
   <div class="card wheel-section">
-    <h2>1-31 号码幸运轮盘 <span class="status-badge" id="connStatus">正在连接服务器...</span></h2>
+    <h2>1-31 号码幸运轮盘</h2>
     <div class="wheel-wrapper">
       <div class="pointer"></div>
       <canvas id="wheelCanvas" width="400" height="400"></canvas>
     </div>
-    <button id="spinBtn" class="btn btn-spin" onclick="window.spinWheel()" disabled>开始抽号码</button>
+    <button id="spinBtn" class="btn btn-spin" onclick="spinWheel()">开始抽号码</button>
   </div>
 
   <!-- 右侧：姓名登记与结果呈现 -->
   <div class="control-panel">
+    <!-- 参与者登记 -->
     <div class="card">
       <h2>添加参与者</h2>
       <div class="input-group">
-        <input type="text" id="nameInput" placeholder="输入名字后按回车" onkeydown="if(event.key==='Enter') window.addParticipant()">
-        <button class="btn" onclick="window.addParticipant()" id="addBtn" disabled>添加</button>
+        <input type="text" id="nameInput" placeholder="输入名字后按回车或点击添加" onkeydown="if(event.key==='Enter') addParticipant()">
+        <button class="btn" onclick="addParticipant()">添加</button>
       </div>
     </div>
 
+    <!-- 抽签结果明细 -->
     <div class="card">
       <h2>抽签结果汇总</h2>
       <div class="table-wrapper">
         <table>
           <thead>
-            <tr><th>参与者</th><th>分配号码</th><th>状态</th><th style="text-align: center;">操作</th></tr>
+            <tr>
+              <th>参与者</th>
+              <th>分配号码</th>
+              <th>状态</th>
+              <th style="width: 60px; text-align: center;">操作</th>
+            </tr>
           </thead>
-          <tbody id="resultTableBody"></tbody>
+          <tbody id="resultTableBody">
+            <!-- 动态生成列表 row -->
+          </tbody>
         </table>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 引入 Firebase 模块 (使用 ES6 Module 方式) -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-  import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
-
-  // ==========================================
-  // 👇 【请在这里替换为你自己的 Firebase 配置】 👇
-  // ==========================================
-  const firebaseConfig = {
-    apiKey: "你的_API_KEY",
-    authDomain: "你的_项目ID.firebaseapp.com",
-    databaseURL: "https://你的_项目ID-default-rtdb.firebaseio.com", 
-    projectId: "你的_项目ID",
-    storageBucket: "你的_项目ID.appspot.com",
-    messagingSenderId: "你的_SenderID",
-    appId: "你的_AppID"
-  };
-  // ==========================================
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const roomRef = ref(db, 'lotteryRoom'); // 我们把数据存在 lotterRoom 这个节点下
-
-  // 本地全局变量
+<script>
+  // 初始化 1 到 31 号码库
   let availableNumbers = Array.from({length: 31}, (_, i) => i + 1);
-  let participants = [];
-  let isSpinning = false;
-  let localLastSpinTime = 0;
+  let participants = []; // { id: number, name: string, number: number | null }
+  
   let currentRotation = 0;
+  let isSpinning = false;
   
   const canvas = document.getElementById('wheelCanvas');
   const ctx = canvas.getContext('2d');
   const colors = ['#f87171', '#fb923c', '#fbbf24', '#a3e635', '#34d399', '#22d3ee', '#818cf8', '#c084fc', '#f472b6'];
 
-  // 监听云端数据库的变化（所有人实时同步的核心）
-  onValue(roomRef, (snapshot) => {
-    document.getElementById('connStatus').innerText = "🟢 联机已就绪";
-    document.getElementById('addBtn').disabled = false;
-    document.getElementById('spinBtn').disabled = false;
-
-    const data = snapshot.val();
-    if (data) {
-      const newData = {
-        availableNumbers: data.availableNumbers || [],
-        participants: data.participants || [],
-        latestSpin: data.latestSpin || { timestamp: 0 }
-      };
-
-      // 判断云端是否发布了“开始转动”的新指令
-      if (newData.latestSpin.timestamp > localLastSpinTime) {
-        // 如果是最近 10 秒内发生的抽奖，就播放动画
-        if (Date.now() - newData.latestSpin.timestamp < 10000) {
-          executeSpinAnimation(newData);
-        } else {
-          // 如果是很久以前的记录（比如新进入房间的人），直接跳过动画看结果
-          snapToResult(newData);
-        }
-      } else if (!isSpinning) {
-        // 平时有人添加、删除名字，直接更新UI
-        snapToResult(newData);
-      }
-    } else {
-      // 如果数据库是空的（第一次使用），初始化房间数据
-      set(roomRef, {
-        availableNumbers: Array.from({length: 31}, (_, i) => i + 1),
-        participants: [],
-        latestSpin: { timestamp: 0, currentRotation: 0 }
-      });
-    }
-  });
-
-  // 执行转动动画
-  function executeSpinAnimation(newData) {
-    isSpinning = true;
-    document.getElementById('spinBtn').disabled = true;
-    
-    localLastSpinTime = newData.latestSpin.timestamp;
-    currentRotation = newData.latestSpin.currentRotation;
-
-    // 所有人同时开始转盘动画
-    canvas.style.transition = 'transform 4s cubic-bezier(0.15, 0.99, 0.35, 1)';
-    canvas.style.transform = `rotate(${currentRotation}deg)`;
-
-    // 动画结束后的处理
-    setTimeout(() => {
-      snapToResult(newData);
-      isSpinning = false;
-      document.getElementById('spinBtn').disabled = false;
-    }, 4000);
-  }
-
-  // 直接跳到最新结果并重新绘图
-  function snapToResult(newData) {
-    localLastSpinTime = newData.latestSpin.timestamp;
-    currentRotation = newData.latestSpin.currentRotation;
-    availableNumbers = newData.availableNumbers;
-    participants = newData.participants;
-
-    canvas.style.transition = 'none';
-    canvas.style.transform = `rotate(${currentRotation % 360}deg)`;
-    drawWheel();
-    updateTable();
-  }
-
-  // ---------------- 全局交互函数 ----------------
-  // 因为使用了 type="module", 需要把函数挂载到 window 上供 HTML 调用
-
-  window.addParticipant = async function() {
-    if (isSpinning) return;
-    const input = document.getElementById('nameInput');
-    const name = input.value.trim();
-    if (!name) return;
-
-    // 拉取最新数据再添加，防止覆盖别人的操作
-    const snap = await get(roomRef);
-    let data = snap.val() || {};
-    let parts = data.participants || [];
-    
-    parts.push({ id: Date.now(), name: name, number: null });
-    set(roomRef, { ...data, participants: parts }); // 同步到云端
-    input.value = '';
-  };
-
-  window.deleteParticipant = async function(id) {
-    if (isSpinning) return;
-    const snap = await get(roomRef);
-    let data = snap.val();
-    if (!data) return;
-
-    let parts = data.participants || [];
-    let nums = data.availableNumbers || [];
-
-    const index = parts.findIndex(p => p.id === id);
-    if (index !== -1) {
-      if (parts[index].number !== null) {
-        nums.push(parts[index].number); // 号码放回
-        nums.sort((a, b) => a - b);
-      }
-      parts.splice(index, 1);
-      set(roomRef, { ...data, participants: parts, availableNumbers: nums }); // 同步到云端
-    }
-  };
-
-  window.spinWheel = async function() {
-    if (isSpinning) return;
-
-    const snap = await get(roomRef);
-    let data = snap.val();
-    if (!data) return;
-
-    let parts = data.participants || [];
-    let nums = data.availableNumbers || [];
-
-    const nextParticipant = parts.find(p => p.number === null);
-    if (!nextParticipant) { alert('请先添加尚未抽签的参与者！'); return; }
-    if (nums.length === 0) { alert('所有 1-31 号码都已经抽完！'); return; }
-
-    // 在发起人的电脑上计算出结果
-    const selectedIndex = Math.floor(Math.random() * nums.length);
-    const sliceAngle = 360 / nums.length;
-    const targetSliceCenter = selectedIndex * sliceAngle + sliceAngle / 2;
-    const targetDegree = 270 - targetSliceCenter;
-
-    const extraRounds = 5 * 360; // 转 5 圈
-    const nextRotation = currentRotation + extraRounds + (targetDegree - (currentRotation % 360) + 360) % 360;
-    
-    nextParticipant.number = nums[selectedIndex];
-    nums.splice(selectedIndex, 1);
-
-    // 【广播指令】将结果上传到云端，所有联机的设备瞬间就会收到这个数据并开始转动
-    set(roomRef, {
-      participants: parts,
-      availableNumbers: nums,
-      latestSpin: {
-        timestamp: Date.now(),
-        currentRotation: nextRotation
-      }
-    });
-  };
-
-  // ---------------- UI 绘制逻辑 ----------------
+  // 绘制轮盘
   function drawWheel() {
     const numSlices = availableNumbers.length;
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const radius = centerX - 10;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (numSlices === 0) {
-      ctx.beginPath(); ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = '#e5e7eb'; ctx.fill();
-      ctx.fillStyle = '#6b7280'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fill();
+      ctx.fillStyle = '#6b7280';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
       ctx.fillText('所有号码已抽完', centerX, centerY);
       return;
     }
 
     const sliceAngle = (2 * Math.PI) / numSlices;
+
     for (let i = 0; i < numSlices; i++) {
       const angle = i * sliceAngle;
-      ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.arc(centerX, centerY, radius, angle, angle + sliceAngle); ctx.closePath();
-      ctx.fillStyle = colors[i % colors.length]; ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, angle, angle + sliceAngle);
+      ctx.closePath();
+      
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
 
+      // 绘制数字文本
       ctx.save();
-      ctx.translate(centerX, centerY); ctx.rotate(angle + sliceAngle / 2);
-      ctx.textAlign = 'right'; ctx.fillStyle = '#ffffff'; ctx.font = 'bold 16px sans-serif';
+      ctx.translate(centerX, centerY);
+      ctx.rotate(angle + sliceAngle / 2);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px sans-serif';
       ctx.fillText(availableNumbers[i], radius - 20, 6);
       ctx.restore();
     }
   }
 
+  // 添加参与者
+  function addParticipant() {
+    const input = document.getElementById('nameInput');
+    const name = input.value.trim();
+    if (!name) return;
+
+    participants.push({ 
+      id: Date.now(), // 唯一识别 ID
+      name: name, 
+      number: null 
+    });
+    input.value = '';
+    updateTable();
+  }
+
+  // 删除参与者
+  function deleteParticipant(id) {
+    if (isSpinning) return; // 旋转过程中不允许删除
+
+    const index = participants.findIndex(p => p.id === id);
+    if (index !== -1) {
+      const target = participants[index];
+      
+      // 如果该参与者已经抽过号码，删除时将号码放回可用号码池，并重新升序排序
+      if (target.number !== null) {
+        availableNumbers.push(target.number);
+        availableNumbers.sort((a, b) => a - b);
+        drawWheel(); // 重新绘制轮盘
+      }
+
+      // 从列表中删除该参与者
+      participants.splice(index, 1);
+      updateTable();
+    }
+  }
+
+  // 更新表格显示
   function updateTable() {
     const tbody = document.getElementById('resultTableBody');
     tbody.innerHTML = '';
+
     participants.forEach((p) => {
       const tr = document.createElement('tr');
       const isDrawn = p.number !== null;
@@ -312,12 +221,71 @@
         <td>${isDrawn ? `<b style="color: #2563eb; font-size: 1.1rem;">${p.number} 号</b>` : '-'}</td>
         <td><span class="tag ${isDrawn ? 'tag-done' : 'tag-pending'}">${isDrawn ? '已抽号' : '待抽签'}</span></td>
         <td style="text-align: center;">
-          <button class="btn btn-delete" onclick="window.deleteParticipant(${p.id})" ${isSpinning ? 'disabled' : ''}>删除</button>
+          <button class="btn btn-delete" onclick="deleteParticipant(${p.id})" ${isSpinning ? 'disabled' : ''}>删除</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
   }
+
+  // 开始转动轮盘
+  function spinWheel() {
+    if (isSpinning) return;
+
+    // 检查是否有待抽签的参与者
+    const nextParticipant = participants.find(p => p.number === null);
+    if (!nextParticipant) {
+      alert('请先添加尚未抽签的参与者！');
+      return;
+    }
+
+    if (availableNumbers.length === 0) {
+      alert('所有 1-31 号码都已经抽完！');
+      return;
+    }
+
+    isSpinning = true;
+    document.getElementById('spinBtn').disabled = true;
+    updateTable(); // 旋转期间禁用删除按钮
+
+    // 随机选择当前剩余号码库中的一个索引
+    const selectedIndex = Math.floor(Math.random() * availableNumbers.length);
+    const sliceAngle = 360 / availableNumbers.length;
+
+    // 计算目标角度
+    const targetSliceCenter = selectedIndex * sliceAngle + sliceAngle / 2;
+    const targetDegree = 270 - targetSliceCenter;
+    
+    const extraRounds = 5 * 360;
+    const degreesToRotate = extraRounds + (targetDegree - (currentRotation % 360) + 360) % 360;
+    
+    currentRotation += degreesToRotate;
+
+    canvas.style.transition = 'transform 4s cubic-bezier(0.15, 0.99, 0.35, 1)';
+    canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+    // 动画结束后的逻辑
+    setTimeout(() => {
+      const drawnNumber = availableNumbers[selectedIndex];
+      nextParticipant.number = drawnNumber;
+
+      // 从可抽号码池中移除该号码
+      availableNumbers.splice(selectedIndex, 1);
+
+      // 重置 Canvas 角度并重新绘制轮盘
+      canvas.style.transition = 'none';
+      canvas.style.transform = `rotate(${currentRotation % 360}deg)`;
+      drawWheel();
+
+      isSpinning = false;
+      document.getElementById('spinBtn').disabled = false;
+      updateTable();
+    }, 4000);
+  }
+
+  // 初始化绘图
+  drawWheel();
 </script>
+
 </body>
 </html>
